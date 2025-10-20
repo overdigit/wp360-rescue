@@ -20,19 +20,13 @@ export ZSTD_COMP_LEVEL=3
 
 shutdown_guard()
 {
-  gpioset --bias=pull-down --drive=push-pull gpiochip0 24=1
-  sleep 0.005
-  gpioset --bias=pull-down --drive=push-pull gpiochip0 24=0
+  gpioset --bias=pull-down --drive=push-pull -c 0 -t 5,0 24=1
 }
 
 
 poweroff_ready()
 {
-  while true
-  do
-    [[ $(gpioget gpiochip0 22) == "0" ]] && break
-    sleep 0.05
-  done
+  gpiomon -n 1 -c 0 22
   pinctrl set 23 op dh
 }
 
@@ -41,10 +35,10 @@ set_run_led()
 {
   case "$1" in
     on)
-      gpioset --bias=pull-up --drive=open-drain gpiochip0 17=0
+      gpioset --bias=pull-up --drive=open-drain -c 0 -z 17=0
       ;;
     off)
-      gpioset --bias=pull-up --drive=open-drain gpiochip0 17=1
+      gpioset --bias=pull-up --drive=open-drain -c 0 -z 17=1
       ;;
   esac
 }
@@ -54,31 +48,20 @@ blink_led()
 {
   case $1 in
     0)
-      blink=1
-      steps=1
-      waiting=0
+      echo 1000,1000
       ;;
     1|2|3|4|5|6|7|8|9)
-      blink=0.2
-      steps=$1
-      waiting=3
+      for i in $(seq 1 $1)
+      do
+        echo -n 200,200,
+      done
+      echo 3000
       ;;
     *)
       echo "Usage: $0 <0|1|2|3|4|5|6|7|8|9>" >&2
-      return
+      return 1
       ;;
   esac
-  while true
-  do
-    for i in $(seq 1 $steps)
-    do
-      set_run_led on
-      sleep $blink
-      set_run_led off
-      sleep $blink
-    done
-    sleep $waiting
-  done
 }
 
 
@@ -98,7 +81,7 @@ find_trigger()
     return 0
   fi
 
-  [[ $(gpioget gpiochip0 6) == "1" ]] && return 0
+  (gpioget -c 0 6 | grep -q "=inactive") && return 0
   modprobe exfat
   local labels="WP360SAVE WP360FCTORY WP360RECV"
   for i in $(seq 1 10)
@@ -157,9 +140,9 @@ wp360_save()
   esac
 
   mkdir /mnt /mnt/target /mnt/boot
-  
+
   mount "$TARGET" /mnt/target || return 2
-  
+
   if [[ -e "/mnt/target/WP360_${MAC_ADDRESS}.img.zst" ]]
   then
     if [[ -e "/mnt/target/WP360_${MAC_ADDRESS}.old.img.zst" ]]
@@ -168,7 +151,7 @@ wp360_save()
     fi
     mv "/mnt/target/WP360_${MAC_ADDRESS}.img.zst" "/mnt/target/WP360_${MAC_ADDRESS}.old.img.zst" || return 3
   fi
-  
+
   mount /dev/disk/by-label/bootfs /mnt/boot || return 4
   sed -i 's/$/ wp360-grow-fs/' /mnt/boot/cmdline.txt || return 4
   case "$1" in
@@ -245,7 +228,7 @@ wp360_grow_fs()
 }
 
 
-blink_led 0 &
+gpioset -c 0 -t $(blink_led 0) 17=0 &
 pid=$!
 TRIGGER="$(find_trigger)"
 [[ "$TRIGGER" == "" ]] || begin_log_msg "WP360_$TRIGGER"
@@ -269,7 +252,7 @@ case "$TRIGGER" in
     kill $pid
     set_run_led off
     exit 0
-    ;; 
+    ;;
 esac
 
 ret=$?
@@ -281,17 +264,11 @@ poweroff_ready &
 case $ret in
   0)
     log_success_msg "WP360_$TRIGGER"
-    while true
-    do
-      set_run_led on
-      sleep 1
-      set_run_led off
-      sleep 0.2
-    done
+    gpioset -c 0 -t 200,1000 17=1
     ;;
   1|2|3|4|5|6|7|8|9)
     log_failure_msg "WP360_$TRIGGER"
-    blink_led $ret
+    gpioset -c 0 -t $(blink_led $ret) 17=1
     ;;
   *)
     sleep 86400
