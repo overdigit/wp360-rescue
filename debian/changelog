@@ -1,3 +1,9 @@
+wp360-rescue (1.1.1-1) trixie; urgency=low
+
+  * Prevent gpioset from sticking around after turning off the status LED.
+
+ -- Overdigit <info@overdigit.com>  Mon, 03 Nov 2025 18:55:25 +0100
+
 wp360-rescue (1.1.0-1) trixie; urgency=low
 
   * Update to new gpiod syntax.
