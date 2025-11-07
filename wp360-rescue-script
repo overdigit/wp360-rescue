@@ -83,7 +83,7 @@ find_trigger()
     return 0
   fi
 
-  (gpioget -c 0 6 | grep -q "=inactive") && return 0
+  (gpioget --bias=pull-up -c 0 6 | grep -q "=active") && return 0
   modprobe exfat
   local labels="WP360SAVE WP360FCTORY WP360RECV"
   for i in $(seq 1 10)

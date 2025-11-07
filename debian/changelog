@@ -1,3 +1,9 @@
+wp360-rescue (1.1.2-1) trixie; urgency=low
+
+  * Fix rescue button detection.
+
+ -- Overdigit <info@overdigit.com>  Fri, 07 Nov 2025 11:48:06 +0100
+
 wp360-rescue (1.1.1-1) trixie; urgency=low
 
   * Prevent gpioset from sticking around after turning off the status LED.
