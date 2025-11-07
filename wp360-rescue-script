@@ -164,7 +164,7 @@ wp360_save()
   sync
   umount /mnt/boot || return 4
 
-  e2fsck -f /dev/disk/by-label/rootfs
+  e2fsck -f -y /dev/disk/by-label/rootfs
   [[ $? -lt 4 ]] || return 5
   resize2fs -f -M /dev/disk/by-label/rootfs || return 5
   ROOT_PART_START=$(( $(cat /sys/block/mmcblk0/mmcblk0p2/start) *512))
@@ -222,7 +222,7 @@ wp360_grow_fs()
   sed -i 's/ wp360-grow-fs//' /mnt/boot/cmdline.txt || return 7
   sync
   umount /mnt/boot || return 7
-  e2fsck -f /dev/disk/by-label/rootfs
+  e2fsck -f -y /dev/disk/by-label/rootfs
   [[ $? -lt 4 ]] || return 8
   resize2fs -f /dev/disk/by-label/rootfs || return 8
 
