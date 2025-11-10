@@ -1,3 +1,9 @@
+wp360-rescue (1.1.4-1) trixie; urgency=low
+
+  * Fix behaviour and reboot after growing the filesystem.
+
+ -- Overdigit <info@overdigit.com>  Mon, 10 Nov 2025 15:39:44 +0100
+
 wp360-rescue (1.1.3-1) trixie; urgency=low
 
   * Fix e2fsck being run in interactive mode.

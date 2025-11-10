@@ -248,7 +248,7 @@ case "$TRIGGER" in
     wp360_restore internal
     ;;
   grow_fs)
-    wp360_grow_fs && reboot -f
+    wp360_grow_fs
     ;;
   *)
     kill $pid
@@ -259,10 +259,19 @@ esac
 
 ret=$?
 kill $pid
-set_run_led off
+set_run_led off -t
 
 sleep 1
 poweroff_ready &
+case "$TRIGGER" in
+  grow_fs)
+    reboot -f
+    ;;
+  factory_backup)
+    reboot -f
+    ;;
+esac
+
 case $ret in
   0)
     log_success_msg "WP360_$TRIGGER"
