@@ -12,5 +12,5 @@ Rules-Requires-Root: no
 Package: wp360-rescue
 Architecture: all
 Maintainer: Overdigit <info@overdigit.com>
-Depends: ${misc:Depends}, initramfs-tools, coreutils, zstd, e2fsprogs, gpiod
+Depends: ${misc:Depends}, initramfs-tools, coreutils, zstd, e2fsprogs, gpiod, wp360-pmuc
 Description: Package containing a rescue script for backing up and reimaging the device.

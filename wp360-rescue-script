@@ -18,18 +18,17 @@ export BS=$((10*1024*1024))
 export ZSTD_COMP_LEVEL=3
 
 
-shutdown_guard()
+pmuc_gentle_shutdown()
 {
-  gpioset --bias=pull-down --drive=push-pull -c 0 -t 5,0 24=1
+  case "$1" in
+    on)
+      echo 1 > /sys/kernel/wp360-pmuc/bootup
+      ;;
+    off)
+      echo 0 > /sys/kernel/wp360-pmuc/bootup
+      ;;
+  esac
 }
-
-
-poweroff_ready()
-{
-  gpiomon -n 1 -c 0 22
-  pinctrl set 23 op dh
-}
-
 
 set_run_led()
 {
@@ -122,7 +121,7 @@ wp360_save()
   # 4: couldn't add cmdline argument to reexpand the filesystem (corrupted flash?)
   # 5: fsck couldn't run, fsck couldn't fix, or resize2fs failed (corrupted flash / root filesystem?)
   # 6: couldn't read mmcblk0, or couldn't write the archive on target fs (image is bigger than the free space available?)
-  shutdown_guard
+  pmuc_gentle_shutdown on
   case "$1" in
     internal)
       TARGET=/dev/disk/by-label/WP360IntRecovery
@@ -185,7 +184,7 @@ wp360_restore()
   # 3: no image to restore (was it ever created / is it an image for a different device?)
   # 6: couldn't read the image, image is corrupted, or couldn't write the image (broken flash/pendrive?)
 
-  shutdown_guard
+  pmuc_gentle_shutdown on
   case "$1" in
     internal)
       TARGET=/dev/disk/by-label/WP360IntRecovery
@@ -216,7 +215,7 @@ wp360_grow_fs()
   # 7: couldn't remove cmdline argument to grow fs
   # 8: fsck couldn't run, fsck couldn't fix, or resize2fs failed (corrupted flash / root filesystem?)
 
-  shutdown_guard
+  pmuc_gentle_shutdown on
   mkdir /mnt /mnt/boot
   mount /dev/disk/by-label/bootfs /mnt/boot || return 7
   sed -i 's/ wp360-grow-fs//' /mnt/boot/cmdline.txt || return 7
@@ -262,20 +261,20 @@ kill $pid
 set_run_led off -t
 
 sleep 1
-poweroff_ready &
-case "$TRIGGER" in
-  grow_fs)
-    reboot -f
-    ;;
-  factory_backup)
-    reboot -f
-    ;;
-esac
+pmuc_gentle_shutdown off
+
 
 case $ret in
   0)
     log_success_msg "WP360_$TRIGGER"
-    gpioset -c 0 -t 200,1000 17=1
+    case "$TRIGGER" in
+      grow_fs|factory_backup)
+        reboot -f
+        ;;
+      default)
+        gpioset -c 0 -t 200,1000 17=1
+        ;;
+      esac
     ;;
   1|2|3|4|5|6|7|8|9)
     log_failure_msg "WP360_$TRIGGER"
