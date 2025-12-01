@@ -258,7 +258,7 @@ esac
 
 ret=$?
 kill $pid
-set_run_led off -t
+set_run_led off -t 0
 
 sleep 1
 pmuc_gentle_shutdown off
@@ -271,7 +271,7 @@ case $ret in
       grow_fs|factory_backup)
         reboot -f
         ;;
-      default)
+      *)
         gpioset -c 0 -t 200,1000 17=1
         ;;
       esac
