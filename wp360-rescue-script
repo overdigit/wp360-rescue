@@ -12,6 +12,7 @@ prereqs)
 esac
 
 . /scripts/functions
+. /scripts/local
 # Begin real processing below this line
 export MAC_ADDRESS="$(cut /sys/class/net/eth0/address -d: -f1-6 -O '')"
 export BS=$((10*1024*1024))
@@ -116,19 +117,18 @@ wp360_save()
 {
   # Return codes:
   # 1: wrong argument (how?)
-  # 2: couldn't create or mount target fs for image storage (corrupted drive/flash?)
+  # 2: couldn't create or mount target fs for image storage (corrupted drive/flash, missing partition?)
   # 3: couldn't move previous image, or remove even older image (corrupted drive/flash?)
   # 4: couldn't add cmdline argument to reexpand the filesystem (corrupted flash?)
   # 5: fsck couldn't run, fsck couldn't fix, or resize2fs failed (corrupted flash / root filesystem?)
-  # 6: couldn't read mmcblk0, or couldn't write the archive on target fs (image is bigger than the free space available?)
+  # 6: couldn't read root device, or couldn't write the archive on target fs (image is bigger than the free space available?)
   pmuc_gentle_shutdown on
   case "$1" in
     internal)
       TARGET=/dev/disk/by-label/WP360IntRecovery
       if ! [[ -b "$TARGET" ]]
       then
-        # Should necessarily be /dev/mmcblk0p4
-        TARGET=/dev/mmcblk0p4
+	TARGET="/dev/$(lsblk -Q "partn == 4" -no kname "$ROOT_DEV")"
         mke2fs -q -t ext4 -L "WP360IntRecovery" $TARGET || return 2
       fi
       ;;
@@ -166,10 +166,10 @@ wp360_save()
   e2fsck -f -y /dev/disk/by-label/rootfs
   [[ $? -lt 4 ]] || return 5
   resize2fs -f -M /dev/disk/by-label/rootfs || return 5
-  ROOT_PART_START=$(( $(cat /sys/block/mmcblk0/mmcblk0p2/start) *512))
+  ROOT_PART_START=$(( $(cat /sys/block/$ROOT_DEV_NAME/$ROOT_PART_NAME/start) *512))
   ROOT_FS_SIZE=$(dumpe2fs -h /dev/disk/by-label/rootfs 2>/dev/null | awk -F: '/Block count/{count=$2} /Block size/{size=$2} END{print count*size}')
-  IMG_SIZE_COUNT=$(( (ROOT_PART_START + ROOT_FS_SIZE + BS * 10) / BS ))
-  dd if=/dev/mmcblk0 bs=$BS count=$IMG_SIZE_COUNT | zstd -q -$ZSTD_COMP_LEVEL -o /mnt/target/WP360_${MAC_ADDRESS}.img.zst || return 6
+  IMG_SIZE_COUNT=$(( (ROOT_PART_START + ROOT_FS_SIZE + BS) / BS ))
+  dd if=$ROOT_DEV bs=$BS count=$IMG_SIZE_COUNT | zstd -q -$ZSTD_COMP_LEVEL -o /mnt/target/WP360_${MAC_ADDRESS}.img.zst || return 6
   sync
   umount /mnt/target
   return 0
@@ -202,7 +202,7 @@ wp360_restore()
 
   [[ -e "/mnt/target/WP360_${MAC_ADDRESS}.img.zst" ]] || return 3
 
-  zstd -c -d "/mnt/target/WP360_${MAC_ADDRESS}.img.zst" | dd of=/dev/mmcblk0 bs=$BS oflag=dsync conv=sparse || return 6
+  zstd -c -d "/mnt/target/WP360_${MAC_ADDRESS}.img.zst" | dd of=$ROOT_DEV bs=$BS oflag=dsync conv=sparse || return 6
   sync
   umount /mnt/target
   return 0
@@ -232,7 +232,13 @@ wp360_grow_fs()
 gpioset -c 0 -t $(blink_led 0) 17=0 &
 pid=$!
 TRIGGER="$(find_trigger)"
-[[ "$TRIGGER" == "" ]] || begin_log_msg "WP360_$TRIGGER"
+
+local_device_setup "$ROOT" "root file system"
+ROOT_PART_NAME="$(lsblk -no kname "$DEV")"
+ROOT_DEV_NAME="$(lsblk -no pkname "$DEV")"
+ROOT_DEV="/dev/$ROOT_DEV_NAME"
+
+[[ "$TRIGGER" == "" ]] || log_begin_msg "WP360_$TRIGGER"
 case "$TRIGGER" in
   save)
     wp360_save external
