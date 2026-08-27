@@ -1,3 +1,9 @@
+wp360-rescue (1.2.2-1) trixie; urgency=low
+
+  * Make rescue script root-device-agnostic.
+
+ -- Overdigit <info@overdigit.com>  Thu, 27 Aug 2026 18:22:22 +0200
+
 wp360-rescue (1.2.1-1) trixie; urgency=low
 
   * Fix script continuing boot on completion.
